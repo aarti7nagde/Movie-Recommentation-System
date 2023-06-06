@@ -1,0 +1,61 @@
+import pandas as pd
+import warnings
+warnings.filterwarnings("ignore")
+
+movies=pd.read_csv('movies.csv')
+ratings=pd.read_csv('ratings.csv')
+links=pd.read_csv('links.csv')
+tags=pd.read_csv('tags.csv')
+
+links.head()
+tags.head()
+movies.head()
+
+movies=movies.drop('genres',1)
+movies.head()
+
+ratings.head()
+
+ratings=ratings.drop('timestamp',1)
+ratings.head()
+
+df=pd.merge(movies,ratings,on='movieId')
+df.head()
+
+df.groupby('title')['rating'].mean().sort_values(ascending=False).head()
+
+df.groupby('title')['rating'].count().sort_values(ascending=False).head()
+
+ploting = pd.DataFrame(df.groupby('title')['rating'].mean())
+ploting.head()
+
+new_df=ratings.pivot_table(index='movieId',columns='userId',values='rating').fillna(0)
+new_df.head()
+
+from scipy.sparse import csr_matrix
+
+matched_movies=csr_matrix(new_df.values)
+
+from sklearn.neighbors import NearestNeighbors
+model=NearestNeighbors(metric='cosine',algorithm='brute',n_neighbors=20)
+model.fit(matched_movies)
+
+from fuzzywuzzy import process
+
+def similar_recommend(movie_name,data,n):
+    index=process.extractOne(movie_name,movies['title'])[2]
+    print('Movie you selected is : ',movies['title'][index])
+    print('Index:',index)
+    distance,indices=model.kneighbors(data[index],n_neighbors=n)
+    print('Cosine distances are : ',distance)
+    print('Indices of the recommended movies are : ',indices)
+    print('Recommended movies are : ')
+    for i in indices:
+        print(movies['title'][i].where(i!=index))
+    print("movie name not matched")
+
+movie= input("Enter the movie: ")
+
+n=int(input("Enter the number of similar movies you want to see: "))
+
+similar_recommend(movie,matched_movies,n+1)
